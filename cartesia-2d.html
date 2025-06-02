@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Cartesiano 2D Interativo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        #cartesian-container {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(21, 40px);
+            grid-template-rows: repeat(21, 40px);
+            gap: 1px;
+            background-color: #ddd;
+            border: 1px solid #999;
+            position: relative;
+        }
+        
+        .cell {
+            background-color: white;
+            border: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .cell:hover {
+            background-color: #f0f0f0;
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        
+        .axis-x {
+            background-color: #ff6b6b !important;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .axis-y {
+            background-color: #4ecdc4 !important;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .origin {
+            background-color: #333 !important;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: move !important;
+            position: relative;
+        }
+        
+        .origin.dragging {
+            background-color: #555 !important;
+            transform: scale(1.2);
+            z-index: 100;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .origin::after {
+            content: '↔';
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .clicked {
+            background-color: #ffd93d !important;
+            border: 2px solid #333;
+            z-index: 5;
+        }
+        
+        .coordinate-info {
+            position: absolute;
+            top: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            white-space: nowrap;
+            z-index: 20;
+        }
+        
+        .grid-info {
+            position: absolute;
+            bottom: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #666;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 20;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            max-width: 600px;
+        }
+        
+        .legend h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        
+        .axis-label {
+            position: absolute;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        
+        .x-positive {
+            right: -35px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #ff6b6b;
+        }
+        
+        .x-negative {
+            left: -35px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #ff6b6b;
+        }
+        
+        .y-positive {
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4ecdc4;
+        }
+        
+        .y-negative {
+            bottom: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4ecdc4;
+        }
+        
+        .instructions {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        .drag-preview {
+            position: absolute;
+            pointer-events: none;
+            opacity: 0.5;
+            background-color: #333;
+            width: 40px;
+            height: 40px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            border: 2px dashed white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema Cartesiano 2D Interativo</h1>
+    
+    <div class="instructions">
+        💡 <strong>Dica:</strong> Você pode arrastar o ponto de origem (0,0) para qualquer posição!<br>
+        Todas as coordenadas serão recalculadas automaticamente.
+    </div>
+    
+    <div id="cartesian-container">
+        <div style="position: relative;">
+            <div class="axis-label x-positive">X+</div>
+            <div class="axis-label x-negative">X-</div>
+            <div class="axis-label y-positive">Y+</div>
+            <div class="axis-label y-negative">Y-</div>
+            <div id="grid"></div>
+            <div class="drag-preview">(0,0)</div>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h3>Legenda:</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ff6b6b;"></div>
+            <span>Eixo X (horizontal)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #4ecdc4;"></div>
+            <span>Eixo Y (vertical)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #333;"></div>
+            <span>Origem (0,0) - Arrastável!</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ffd93d;"></div>
+            <span>Pontos clicados</span>
+        </div>
+    </div>
+    
+    <script>
+        const grid = document.getElementById('grid');
+        const gridSize = 21;
+        let originRow = Math.floor(gridSize / 2);
+        let originCol = Math.floor(gridSize / 2);
+        let cells = [];
+        let clickedCells = [];
+        let isDragging = false;
+        let dragPreview = document.querySelector('.drag-preview');
+        
+        // Criar grade
+        function createGrid() {
+            grid.innerHTML = '';
+            cells = [];
+            
+            for (let row = 0; row < gridSize; row++) {
+                cells[row] = [];
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    
+                    cells[row][col] = cell;
+                    grid.appendChild(cell);
+                }
+            }
+            
+            updateGrid();
+            restoreClickedCells();
+        }
+        
+        // Atualizar grade com base na nova origem
+        function updateGrid() {
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = cells[row][col];
+                    cell.className = 'cell';
+                    cell.innerHTML = '';
+                    
+                    // Calcular coordenadas cartesianas relativas à origem
+                    const x = col - originCol;
+                    const y = originRow - row;
+                    
+                    // Marcar origem
+                    if (row === originRow && col === originCol) {
+                        cell.classList.add('origin');
+                        cell.textContent = '(0,0)';
+                        setupOriginDrag(cell);
+                    } 
+                    // Marcar eixos
+                    else if (col === originCol) {
+                        cell.classList.add('axis-y');
+                        if (y % 5 === 0) {
+                            cell.textContent = y;
+                        }
+                    } else if (row === originRow) {
+                        cell.classList.add('axis-x');
+                        if (x % 5 === 0) {
+                            cell.textContent = x;
+                        }
+                    }
+                    
+                    // Adicionar evento de clique (exceto na origem)
+                    if (!(row === originRow && col === originCol)) {
+                        cell.onclick = function() {
+                            handleCellClick(this, x, y, row, col);
+                        };
+                    }
+                }
+            }
+        }
+        
+        // Configurar arrastar origem
+        function setupOriginDrag(originCell) {
+            originCell.addEventListener('mousedown', startDrag);
+        }
+        
+        function startDrag(e) {
+            isDragging = true;
+            e.target.classList.add('dragging');
+            dragPreview.style.display = 'flex';
+            
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+            e.preventDefault();
+        }
+        
+        function drag(e) {
+            if (!isDragging) return;
+            
+            // Mostrar preview
+            dragPreview.style.left = e.pageX - 20 + 'px';
+            dragPreview.style.top = e.pageY - 20 + 'px';
+            
+            // Destacar célula sob o mouse
+            const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+            if (elementUnder && elementUnder.classList.contains('cell')) {
+                // Remover destaque anterior
+                document.querySelectorAll('.cell').forEach(c => {
+                    if (!c.classList.contains('origin') && !c.classList.contains('clicked')) {
+                        c.style.backgroundColor = '';
+                    }
+                });
+                elementUnder.style.backgroundColor = '#ddd';
+            }
+        }
+        
+        function endDrag(e) {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            dragPreview.style.display = 'none';
+            
+            const elementUnder = document.elementFromPoint(e.clientX, e.clientY);
+            if (elementUnder && elementUnder.classList.contains('cell')) {
+                const newRow = parseInt(elementUnder.dataset.row);
+                const newCol = parseInt(elementUnder.dataset.col);
+                
+                if (newRow !== originRow || newCol !== originCol) {
+                    // Salvar células clicadas antes de mover origem
+                    saveClickedCells();
+                    
+                    // Atualizar origem
+                    originRow = newRow;
+                    originCol = newCol;
+                    
+                    // Reconstruir grade
+                    updateGrid();
+                    restoreClickedCells();
+                }
+            }
+            
+            // Limpar estilos
+            document.querySelector('.origin').classList.remove('dragging');
+            document.querySelectorAll('.cell').forEach(c => {
+                if (!c.classList.contains('clicked')) {
+                    c.style.backgroundColor = '';
+                }
+            });
+            
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', endDrag);
+        }
+        
+        // Salvar células clicadas com suas coordenadas absolutas
+        function saveClickedCells() {
+            clickedCells = [];
+            document.querySelectorAll('.clicked').forEach(cell => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                clickedCells.push({ row, col });
+            });
+        }
+        
+        // Restaurar células clicadas com novas coordenadas
+        function restoreClickedCells() {
+            clickedCells.forEach(({ row, col }) => {
+                const cell = cells[row][col];
+                if (cell && !(row === originRow && col === originCol)) {
+                    const x = col - originCol;
+                    const y = originRow - row;
+                    handleCellClick(cell, x, y, row, col, true);
+                }
+            });
+        }
+        
+        // Lidar com clique na célula
+        function handleCellClick(cell, x, y, row, col, isRestore = false) {
+            if (!cell.classList.contains('clicked')) {
+                cell.classList.add('clicked');
+                
+                // Criar e adicionar informação de coordenada
+                const coordInfo = document.createElement('div');
+                coordInfo.className = 'coordinate-info';
+                coordInfo.textContent = `(${x}, ${y})`;
+                cell.appendChild(coordInfo);
+                
+                // Criar e adicionar informação de linha/coluna
+                const gridInfo = document.createElement('div');
+                gridInfo.className = 'grid-info';
+                gridInfo.textContent = `linha ${row + 1}, coluna ${col + 1}`;
+                cell.appendChild(gridInfo);
+                
+                // Se não for restauração, adicionar à lista
+                if (!isRestore) {
+                    clickedCells.push({ row, col });
+                }
+            }
+        }
+        
+        // Inicializar grade
+        createGrid();
+    </script>
+</body>
+</html>

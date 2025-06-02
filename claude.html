@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Fantasy Tactics - Cenário Interativo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a1a;
+            color: white;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            perspective: 1000px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #scene {
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.5s ease;
+            transform: rotateX(70deg) rotateZ(0deg) scale(1);
+        }
+
+        .tile {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            transform-style: preserve-3d;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tile-top {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #d0d0d0;
+            border: 1px solid #666666;
+            transform: rotateX(90deg) translateZ(25px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+
+        .tile-top span {
+            color: black;
+            font-size: 16px;
+            font-weight: bold;
+            transform: rotateX(-90deg);
+            display: block;
+            text-shadow: 1px 1px 0px white;
+            pointer-events: none;
+        }
+
+        .tile-front {
+            position: absolute;
+            width: 100%;
+            height: 50px;
+            background: #b0b0b0;
+            transform: translateZ(25px);
+        }
+
+        .tile-right {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #999999;
+            transform: rotateY(90deg) translateZ(25px);
+        }
+
+        .tile-back {
+            position: absolute;
+            width: 100%;
+            height: 50px;
+            background: #999999;
+            transform: translateZ(-25px) rotateY(180deg);
+        }
+
+        .tile-left {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: #b0b0b0;
+            transform: rotateY(-90deg) translateZ(25px);
+        }
+
+        .tile-bottom {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #808080;
+            transform: rotateX(-90deg) translateZ(25px);
+        }
+
+        .tile:hover .tile-top {
+            background: #e0e0e0;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tile.highlight-line-col:hover .tile-top {
+            background: #ffffcc !important;
+        }
+        
+        .tile.selected:hover .tile-top {
+            background: #ffff00 !important;
+        }
+
+        .tile.selected .tile-top {
+            background: #ffff00 !important;
+            box-shadow: 0 0 20px rgba(255, 200, 0, 0.8);
+        }
+        
+        .tile.highlight-line-col .tile-top {
+            background: #ffffaa !important;
+        }
+
+        @keyframes pulse {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(1.3); }
+            100% { filter: brightness(1); }
+        }
+
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #4a7c59;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #5a8c69;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        #legend {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .coordinate-display {
+            color: #ffff00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>Posição selecionada: <span id="selectedPos" class="coordinate-display">Nenhuma</span></div>
+        <div>Rotação: <span id="rotation" class="coordinate-display">0°</span></div>
+        <div>Inclinação: <span id="inclination" class="coordinate-display">70°</span></div>
+        <div>Zoom: <span id="zoom" class="coordinate-display">100%</span></div>
+        <div style="margin-top: 10px; font-size: 12px; color: #aaa;">
+            Use as setas ← → ou clique nos botões para girar
+        </div>
+    </div>
+
+    <div id="legend">
+        <div style="margin-bottom: 10px; font-weight: bold;">Legenda:</div>
+        <div>Formato: Linha x Coluna</div>
+        <div>Exemplo: 3x4 = Linha 3, Coluna 4</div>
+    </div>
+
+    <div id="gameContainer">
+        <div id="scene"></div>
+    </div>
+
+    <div id="controls">
+        <button onclick="rotateScene(-45)">← Girar Esquerda</button>
+        <button onclick="rotateScene(45)">Girar Direita →</button>
+        <button onclick="resetScene()">Resetar Vista</button>
+        <button onclick="toggleInclination()">Alternar Inclinação</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 10;
+        const TILE_SIZE = 50;
+        const TILE_HEIGHT = 50;
+        
+        let currentRotation = 0;
+        let currentInclination = 70;
+        let currentZoom = 1;
+        let selectedTile = null;
+        
+        const inclinationAngles = [45, 70, 100];
+        let inclinationIndex = 1; // começa em 70°
+        
+        function createTile(row, col) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.dataset.row = row;
+            tile.dataset.col = col;
+            
+            // Posição em grid quadrado
+            const x = col * TILE_SIZE - (GRID_SIZE * TILE_SIZE) / 2;
+            const y = row * TILE_SIZE - (GRID_SIZE * TILE_SIZE) / 2;
+            const z = 0; // Superfície plana
+            
+            tile.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+            
+            // Criar faces do cubo
+            const faces = ['top', 'front', 'right', 'back', 'left', 'bottom'];
+            faces.forEach(face => {
+                const div = document.createElement('div');
+                div.className = `tile-${face}`;
+                
+                // Adicionar texto apenas na face superior
+                if (face === 'top') {
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = `${row}x${col}`;
+                    div.appendChild(textSpan);
+                }
+                
+                tile.appendChild(div);
+            });
+            
+            // Adicionar evento de clique
+            tile.addEventListener('click', () => selectTile(row, col));
+            
+            return tile;
+        }
+        
+        function initScene() {
+            const scene = document.getElementById('scene');
+            scene.innerHTML = '';
+            
+            // Criar tiles
+            for (let row = 0; row < GRID_SIZE; row++) {
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    const tile = createTile(row, col);
+                    scene.appendChild(tile);
+                }
+            }
+        }
+        
+        function selectTile(row, col) {
+            // Remover seleção anterior e highlights
+            document.querySelectorAll('.tile').forEach(tile => {
+                tile.classList.remove('selected', 'highlight-line-col');
+            });
+            
+            // Selecionar novo tile e destacar linha/coluna
+            const tiles = document.querySelectorAll('.tile');
+            tiles.forEach(tile => {
+                const tileRow = parseInt(tile.dataset.row);
+                const tileCol = parseInt(tile.dataset.col);
+                
+                // Destacar linha e coluna
+                if (tileRow === row || tileCol === col) {
+                    tile.classList.add('highlight-line-col');
+                }
+                
+                // Selecionar o tile clicado
+                if (tileRow === row && tileCol === col) {
+                    tile.classList.add('selected');
+                    selectedTile = tile;
+                    document.getElementById('selectedPos').textContent = `${row}x${col} (Linha ${row}, Coluna ${col})`;
+                }
+            });
+        }
+        
+        function updateSceneTransform() {
+            const scene = document.getElementById('scene');
+            scene.style.transform = `rotateX(${currentInclination}deg) rotateZ(${currentRotation}deg) scale(${currentZoom})`;
+        }
+        
+        function rotateScene(degrees) {
+            currentRotation += degrees;
+            updateSceneTransform();
+            document.getElementById('rotation').textContent = `${currentRotation}°`;
+        }
+        
+        function resetScene() {
+            currentRotation = 0;
+            currentInclination = 70;
+            currentZoom = 1;
+            inclinationIndex = 1;
+            updateSceneTransform();
+            document.getElementById('rotation').textContent = `${currentRotation}°`;
+            document.getElementById('inclination').textContent = `${currentInclination}°`;
+            document.getElementById('zoom').textContent = `${Math.round(currentZoom * 100)}%`;
+        }
+        
+        function toggleInclination() {
+            inclinationIndex = (inclinationIndex + 1) % inclinationAngles.length;
+            currentInclination = inclinationAngles[inclinationIndex];
+            updateSceneTransform();
+            document.getElementById('inclination').textContent = `${currentInclination}°`;
+        }
+        
+        function handleZoom(delta) {
+            if (delta > 0) {
+                currentZoom = Math.min(currentZoom * 1.1, 3); // zoom in, máximo 300%
+            } else {
+                currentZoom = Math.max(currentZoom * 0.9, 0.3); // zoom out, mínimo 30%
+            }
+            updateSceneTransform();
+            document.getElementById('zoom').textContent = `${Math.round(currentZoom * 100)}%`;
+        }
+        
+        // Controles de teclado
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case 'ArrowLeft':
+                    rotateScene(-45);
+                    break;
+                case 'ArrowRight':
+                    rotateScene(45);
+                    break;
+                case 'r':
+                case 'R':
+                    resetScene();
+                    break;
+            }
+        });
+        
+        // Controle de zoom com a roda do mouse
+        document.getElementById('gameContainer').addEventListener('wheel', (e) => {
+            e.preventDefault();
+            handleZoom(-e.deltaY);
+        });
+        
+        // Inicializar cena
+        initScene();
+    </script>
+</body>
+</html>

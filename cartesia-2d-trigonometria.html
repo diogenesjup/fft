@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Cartesiano 2D - Trigonometria Interativa</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        #main-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        #cartesian-container {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(21, 40px);
+            grid-template-rows: repeat(21, 40px);
+            gap: 1px;
+            background-color: #ddd;
+            border: 1px solid #999;
+            position: relative;
+        }
+        
+        #overlay-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 15;
+        }
+        
+        .cell {
+            background-color: white;
+            border: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .cell:hover {
+            background-color: #f0f0f0;
+            transform: scale(1.1);
+            z-index: 10;
+        }
+        
+        .axis-x {
+            background-color: #ff6b6b !important;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .axis-y {
+            background-color: #4ecdc4 !important;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .origin {
+            background-color: #333 !important;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .clicked {
+            background-color: #ffd93d !important;
+            border: 2px solid #333;
+            z-index: 5;
+        }
+        
+        .coordinate-info {
+            position: absolute;
+            top: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            white-space: nowrap;
+            z-index: 20;
+        }
+        
+        #info-panel {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-width: 300px;
+        }
+        
+        #info-panel h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .info-section {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        .info-section h3 {
+            margin-top: 0;
+            color: #555;
+            font-size: 18px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .info-value {
+            color: #333;
+        }
+        
+        .trig-visual {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            max-width: 900px;
+        }
+        
+        .legend h3 {
+            margin-top: 0;
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            margin: 10px 15px 10px 0;
+            font-size: 16px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 4px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        
+        .instructions {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            max-width: 900px;
+            text-align: center;
+        }
+        
+        .clear-button {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Comic Sans MS', cursive;
+            transition: all 0.3s ease;
+        }
+        
+        .clear-button:hover {
+            background-color: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #trig-canvas {
+            margin-top: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema Cartesiano 2D - Trigonometria Interativa</h1>
+    
+    <div class="instructions">
+        💡 <strong>Instruções:</strong> Clique em qualquer ponto para visualizar o ângulo, seno, cosseno e tangente!<br>
+        O sistema mostrará visualmente todos os conceitos trigonométricos do ponto em relação à origem.
+    </div>
+    
+    <div id="main-container">
+        <div id="cartesian-container">
+            <div style="position: relative;">
+                <div id="grid"></div>
+                <canvas id="overlay-canvas"></canvas>
+            </div>
+        </div>
+        
+        <div id="info-panel">
+            <h2>Informações Trigonométricas</h2>
+            
+            <div id="point-info" class="info-section">
+                <h3>Ponto Selecionado</h3>
+                <div class="info-row">
+                    <span class="info-label">Coordenadas:</span>
+                    <span class="info-value" id="coord-value">Clique em um ponto</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Distância (r):</span>
+                    <span class="info-value" id="radius-value">-</span>
+                </div>
+            </div>
+            
+            <div id="angle-info" class="info-section">
+                <h3>Ângulo</h3>
+                <div class="info-row">
+                    <span class="info-label">Graus:</span>
+                    <span class="info-value" id="degrees-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Radianos:</span>
+                    <span class="info-value" id="radians-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Em π:</span>
+                    <span class="info-value" id="pi-value">-</span>
+                </div>
+            </div>
+            
+            <div id="trig-info" class="info-section">
+                <h3>Funções Trigonométricas</h3>
+                <div class="info-row">
+                    <span class="info-label">sen(θ) = y/r:</span>
+                    <span class="info-value" id="sin-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">cos(θ) = x/r:</span>
+                    <span class="info-value" id="cos-value">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">tan(θ) = y/x:</span>
+                    <span class="info-value" id="tan-value">-</span>
+                </div>
+            </div>
+            
+            <canvas id="trig-canvas" width="260" height="260"></canvas>
+            
+            <button class="clear-button" onclick="clearSelection()">Limpar Seleção</button>
+        </div>
+    </div>
+    
+    <div class="legend">
+        <h3>Legenda Visual:</h3>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #333; width: 40px;"></div>
+            <span>Raio (hipotenusa)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #ff6b6b;"></div>
+            <span>Projeção X (cosseno)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #4ecdc4;"></div>
+            <span>Projeção Y (seno)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #9b59b6;"></div>
+            <span>Arco do ângulo</span>
+        </div>
+    </div>
+    
+    <script>
+        const grid = document.getElementById('grid');
+        const overlayCanvas = document.getElementById('overlay-canvas');
+        const overlayCtx = overlayCanvas.getContext('2d');
+        const trigCanvas = document.getElementById('trig-canvas');
+        const trigCtx = trigCanvas.getContext('2d');
+        
+        const gridSize = 21;
+        const cellSize = 40;
+        const center = Math.floor(gridSize / 2);
+        let cells = [];
+        let currentPoint = null;
+        
+        // Configurar canvas overlay
+        overlayCanvas.width = gridSize * cellSize + gridSize - 1;
+        overlayCanvas.height = gridSize * cellSize + gridSize - 1;
+        
+        // Criar grade
+        function createGrid() {
+            for (let row = 0; row < gridSize; row++) {
+                cells[row] = [];
+                for (let col = 0; col < gridSize; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    
+                    const x = col - center;
+                    const y = center - row;
+                    
+                    // Marcar origem e eixos
+                    if (x === 0 && y === 0) {
+                        cell.classList.add('origin');
+                        cell.textContent = '(0,0)';
+                    } else if (x === 0) {
+                        cell.classList.add('axis-y');
+                        if (y % 5 === 0) {
+                            cell.textContent = y;
+                        }
+                    } else if (y === 0) {
+                        cell.classList.add('axis-x');
+                        if (x % 5 === 0) {
+                            cell.textContent = x;
+                        }
+                    }
+                    
+                    // Adicionar evento de clique
+                    cell.addEventListener('click', function() {
+                        if (x !== 0 || y !== 0) {
+                            selectPoint(x, y, row, col, this);
+                        }
+                    });
+                    
+                    cells[row][col] = cell;
+                    grid.appendChild(cell);
+                }
+            }
+        }
+        
+        // Selecionar ponto
+        function selectPoint(x, y, row, col, cell) {
+            // Limpar seleção anterior
+            document.querySelectorAll('.clicked').forEach(c => {
+                c.classList.remove('clicked');
+                const coordInfo = c.querySelector('.coordinate-info');
+                if (coordInfo) coordInfo.remove();
+            });
+            
+            // Marcar novo ponto
+            cell.classList.add('clicked');
+            
+            const coordInfo = document.createElement('div');
+            coordInfo.className = 'coordinate-info';
+            coordInfo.textContent = `(${x}, ${y})`;
+            cell.appendChild(coordInfo);
+            
+            currentPoint = { x, y, row, col };
+            
+            // Atualizar visualizações
+            updateTrigInfo(x, y);
+            drawOverlay(x, y);
+            drawTrigCircle(x, y);
+        }
+        
+        // Atualizar informações trigonométricas
+        function updateTrigInfo(x, y) {
+            const r = Math.sqrt(x * x + y * y);
+            let angle = Math.atan2(y, x);
+            if (angle < 0) angle += 2 * Math.PI;
+            
+            const degrees = (angle * 180 / Math.PI);
+            const sin = y / r;
+            const cos = x / r;
+            const tan = x !== 0 ? y / x : (y > 0 ? '∞' : '-∞');
+            
+            // Calcular representação em π
+            const piRatio = angle / Math.PI;
+            let piStr = '';
+            if (piRatio === 0) piStr = '0';
+            else if (piRatio === 0.25) piStr = 'π/4';
+            else if (piRatio === 0.5) piStr = 'π/2';
+            else if (piRatio === 0.75) piStr = '3π/4';
+            else if (piRatio === 1) piStr = 'π';
+            else if (piRatio === 1.25) piStr = '5π/4';
+            else if (piRatio === 1.5) piStr = '3π/2';
+            else if (piRatio === 1.75) piStr = '7π/4';
+            else if (piRatio === 2) piStr = '2π';
+            else piStr = `${piRatio.toFixed(3)}π`;
+            
+            // Atualizar valores no painel
+            document.getElementById('coord-value').textContent = `(${x}, ${y})`;
+            document.getElementById('radius-value').textContent = r.toFixed(3);
+            document.getElementById('degrees-value').textContent = `${degrees.toFixed(1)}°`;
+            document.getElementById('radians-value').textContent = angle.toFixed(3);
+            document.getElementById('pi-value').textContent = piStr;
+            document.getElementById('sin-value').textContent = `${y}/${r.toFixed(1)} = ${sin.toFixed(3)}`;
+            document.getElementById('cos-value').textContent = `${x}/${r.toFixed(1)} = ${cos.toFixed(3)}`;
+            document.getElementById('tan-value').textContent = typeof tan === 'number' ? 
+                `${y}/${x} = ${tan.toFixed(3)}` : tan;
+        }
+        
+        // Desenhar overlay no grid principal
+        function drawOverlay(x, y) {
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            
+            const originX = center * cellSize + center * 1 + cellSize / 2;
+            const originY = center * cellSize + center * 1 + cellSize / 2;
+            const pointX = (center + x) * cellSize + (center + x) * 1 + cellSize / 2;
+            const pointY = (center - y) * cellSize + (center - y) * 1 + cellSize / 2;
+            
+            // Desenhar projeção X (cosseno)
+            overlayCtx.strokeStyle = '#ff6b6b';
+            overlayCtx.lineWidth = 3;
+            overlayCtx.setLineDash([5, 5]);
+            overlayCtx.beginPath();
+            overlayCtx.moveTo(originX, originY);
+            overlayCtx.lineTo(pointX, originY);
+            overlayCtx.stroke();
+            overlayCtx.setLineDash([]);
+            
+            // Desenhar projeção Y (seno)
+            overlayCtx.strokeStyle = '#4ecdc4';
+            overlayCtx.lineWidth = 3;
+            overlayCtx.setLineDash([5, 5]);
+            overlayCtx.beginPath();
+            overlayCtx.moveTo(pointX, originY);
+            overlayCtx.lineTo(pointX, pointY);
+            overlayCtx.stroke();
+            overlayCtx.setLineDash([]);
+            
+            // Desenhar raio (hipotenusa)
+            overlayCtx.strokeStyle = '#333';
+            overlayCtx.lineWidth = 3;
+            overlayCtx.beginPath();
+            overlayCtx.moveTo(originX, originY);
+            overlayCtx.lineTo(pointX, pointY);
+            overlayCtx.stroke();
+            
+            // Desenhar arco do ângulo
+            const angle = Math.atan2(-(pointY - originY), pointX - originX);
+            const arcRadius = 50;
+            
+            overlayCtx.strokeStyle = '#9b59b6';
+            overlayCtx.lineWidth = 2;
+            overlayCtx.beginPath();
+            overlayCtx.arc(originX, originY, arcRadius, 0, -angle, angle > 0);
+            overlayCtx.stroke();
+            
+            // Marcador de ângulo reto (se aplicável)
+            if (x !== 0 && y !== 0) {
+                const squareSize = 15;
+                overlayCtx.strokeStyle = '#666';
+                overlayCtx.lineWidth = 2;
+                overlayCtx.strokeRect(
+                    pointX - squareSize * Math.sign(x),
+                    originY - squareSize * Math.sign(y),
+                    squareSize * Math.sign(x),
+                    squareSize * Math.sign(y)
+                );
+            }
+        }
+        
+        // Desenhar círculo trigonométrico
+        function drawTrigCircle(x, y) {
+            const w = trigCanvas.width;
+            const h = trigCanvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const radius = 100;
+            
+            trigCtx.clearRect(0, 0, w, h);
+            
+            // Fundo
+            trigCtx.fillStyle = '#f9f9f9';
+            trigCtx.fillRect(0, 0, w, h);
+            
+            // Círculo unitário
+            trigCtx.strokeStyle = '#ddd';
+            trigCtx.lineWidth = 2;
+            trigCtx.beginPath();
+            trigCtx.arc(cx, cy, radius, 0, 2 * Math.PI);
+            trigCtx.stroke();
+            
+            // Eixos
+            trigCtx.strokeStyle = '#ccc';
+            trigCtx.lineWidth = 1;
+            trigCtx.beginPath();
+            trigCtx.moveTo(cx - radius - 20, cy);
+            trigCtx.lineTo(cx + radius + 20, cy);
+            trigCtx.moveTo(cx, cy - radius - 20);
+            trigCtx.lineTo(cx, cy + radius + 20);
+            trigCtx.stroke();
+            
+            // Ponto no círculo
+            const r = Math.sqrt(x * x + y * y);
+            const unitX = x / r;
+            const unitY = y / r;
+            const px = cx + unitX * radius;
+            const py = cy - unitY * radius;
+            
+            // Projeções
+            trigCtx.strokeStyle = '#ff6b6b';
+            trigCtx.lineWidth = 3;
+            trigCtx.beginPath();
+            trigCtx.moveTo(cx, cy);
+            trigCtx.lineTo(px, cy);
+            trigCtx.stroke();
+            
+            trigCtx.strokeStyle = '#4ecdc4';
+            trigCtx.beginPath();
+            trigCtx.moveTo(px, cy);
+            trigCtx.lineTo(px, py);
+            trigCtx.stroke();
+            
+            // Raio
+            trigCtx.strokeStyle = '#333';
+            trigCtx.beginPath();
+            trigCtx.moveTo(cx, cy);
+            trigCtx.lineTo(px, py);
+            trigCtx.stroke();
+            
+            // Ponto
+            trigCtx.fillStyle = '#ffd93d';
+            trigCtx.beginPath();
+            trigCtx.arc(px, py, 6, 0, 2 * Math.PI);
+            trigCtx.fill();
+            trigCtx.strokeStyle = '#333';
+            trigCtx.lineWidth = 2;
+            trigCtx.stroke();
+            
+            // Labels
+            trigCtx.fillStyle = '#333';
+            trigCtx.font = '14px Comic Sans MS';
+            trigCtx.textAlign = 'center';
+            trigCtx.fillText('cos', cx + unitX * radius / 2, cy + 20);
+            trigCtx.textAlign = 'left';
+            trigCtx.fillText('sen', px + 10, cy - unitY * radius / 2);
+        }
+        
+        // Limpar seleção
+        function clearSelection() {
+            document.querySelectorAll('.clicked').forEach(c => {
+                c.classList.remove('clicked');
+                const coordInfo = c.querySelector('.coordinate-info');
+                if (coordInfo) coordInfo.remove();
+            });
+            
+            overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+            trigCtx.clearRect(0, 0, trigCanvas.width, trigCanvas.height);
+            
+            document.getElementById('coord-value').textContent = 'Clique em um ponto';
+            document.getElementById('radius-value').textContent = '-';
+            document.getElementById('degrees-value').textContent = '-';
+            document.getElementById('radians-value').textContent = '-';
+            document.getElementById('pi-value').textContent = '-';
+            document.getElementById('sin-value').textContent = '-';
+            document.getElementById('cos-value').textContent = '-';
+            document.getElementById('tan-value').textContent = '-';
+            
+            currentPoint = null;
+        }
+        
+        // Inicializar
+        createGrid();
+    </script>
+</body>
+</html>

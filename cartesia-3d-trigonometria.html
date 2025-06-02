@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Cartesiano 3D com Trigonometria</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        #main-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        #canvas-container {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        canvas {
+            border: 1px solid #999;
+            cursor: grab;
+        }
+        
+        canvas:active {
+            cursor: grabbing;
+        }
+        
+        #controls {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-width: 300px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Comic Sans MS', cursive;
+        }
+        
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #4ecdc4;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #4ecdc4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Comic Sans MS', cursive;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #45b5aa;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        #clear-button {
+            background-color: #ff6b6b;
+            margin-top: 10px;
+        }
+        
+        #clear-button:hover {
+            background-color: #ff5252;
+        }
+        
+        .instructions {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            text-align: center;
+            max-width: 800px;
+        }
+        
+        .axis-legend {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        .axis-legend h3 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 4px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        
+        .marked-points {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .marked-points h3 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+        
+        .point-item {
+            padding: 5px;
+            margin: 5px 0;
+            background-color: #ffd93d;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .point-item:hover {
+            background-color: #ffc93d;
+        }
+        
+        .point-item.selected {
+            background-color: #4ecdc4;
+            color: white;
+        }
+        
+        .trig-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff5e6;
+            border-radius: 8px;
+            border: 2px solid #ff9800;
+            display: none;
+        }
+        
+        .trig-info h3 {
+            margin-top: 0;
+            font-size: 20px;
+            color: #ff6b00;
+        }
+        
+        .trig-value {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px;
+            background-color: #fff;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .trig-value strong {
+            color: #ff6b00;
+        }
+        
+        .projection-toggle {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .projection-toggle button {
+            flex: 1;
+            padding: 8px;
+            font-size: 14px;
+        }
+        
+        .projection-toggle button.active {
+            background-color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema Cartesiano 3D com Trigonometria</h1>
+    
+    <div class="instructions">
+        💡 <strong>Instruções:</strong> Use o mouse para rotacionar a visualização 3D. 
+        Digite as coordenadas X, Y e Z e clique em "Marcar Ponto". 
+        Clique em um ponto marcado para ver suas relações trigonométricas!
+    </div>
+    
+    <div id="main-container">
+        <div id="canvas-container">
+            <canvas id="canvas3d" width="700" height="700"></canvas>
+        </div>
+        
+        <div id="controls">
+            <h2 style="margin-top: 0; font-size: 24px;">Coordenadas</h2>
+            
+            <div class="control-group">
+                <label for="x-coord">Posição X:</label>
+                <input type="number" id="x-coord" min="-30" max="30" value="10" step="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="y-coord">Posição Y:</label>
+                <input type="number" id="y-coord" min="-30" max="30" value="10" step="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="z-coord">Posição Z:</label>
+                <input type="number" id="z-coord" min="-30" max="30" value="10" step="1">
+            </div>
+            
+            <button onclick="markPoint()">Marcar Ponto</button>
+            <button id="clear-button" onclick="clearPoints()">Limpar Pontos</button>
+            
+            <div class="projection-toggle">
+                <button id="proj-xy" class="active" onclick="setProjection('xy')">Plano XY</button>
+                <button id="proj-xz" onclick="setProjection('xz')">Plano XZ</button>
+                <button id="proj-yz" onclick="setProjection('yz')">Plano YZ</button>
+            </div>
+            
+            <div class="axis-legend">
+                <h3>Legenda dos Eixos:</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff0000;"></div>
+                    <span>Eixo X (Horizontal)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #00ff00;"></div>
+                    <span>Eixo Y (Vertical)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #0000ff;"></div>
+                    <span>Eixo Z (Profundidade)</span>
+                </div>
+            </div>
+            
+            <div class="marked-points">
+                <h3>Pontos Marcados:</h3>
+                <div id="points-list"></div>
+            </div>
+            
+            <div class="trig-info" id="trig-info">
+                <h3>Relações Trigonométricas</h3>
+                <div id="trig-values"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        // Variáveis de rotação
+        let rotationX = -0.5;
+        let rotationY = -0.5;
+        let scale = 20;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
+        // Pontos marcados
+        let markedPoints = [];
+        let selectedPoint = null;
+        let projectionPlane = 'xy';
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - lastMouseX;
+                const deltaY = e.clientY - lastMouseY;
+                
+                rotationY += deltaX * 0.01;
+                rotationX += deltaY * 0.01;
+                
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                
+                draw();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+        
+        // Mouse wheel para zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            scale *= delta;
+            
+            // Limitar o zoom
+            scale = Math.max(5, Math.min(50, scale));
+            
+            draw();
+        });
+        
+        // Projeção 3D para 2D
+        function project3D(x, y, z) {
+            // Rotação em Y
+            const cosY = Math.cos(rotationY);
+            const sinY = Math.sin(rotationY);
+            const x1 = x * cosY - z * sinY;
+            const z1 = x * sinY + z * cosY;
+            
+            // Rotação em X
+            const cosX = Math.cos(rotationX);
+            const sinX = Math.sin(rotationX);
+            const y1 = y * cosX - z1 * sinX;
+            const z2 = y * sinX + z1 * cosX;
+            
+            // Projeção
+            const perspective = 500 / (500 + z2);
+            const x2d = centerX + x1 * scale * perspective;
+            const y2d = centerY - y1 * scale * perspective;
+            
+            return { x: x2d, y: y2d, depth: z2 };
+        }
+        
+        // Desenhar linha 3D
+        function drawLine3D(x1, y1, z1, x2, y2, z2, color, lineWidth = 1, dashed = false) {
+            const p1 = project3D(x1, y1, z1);
+            const p2 = project3D(x2, y2, z2);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            
+            if (dashed) {
+                ctx.setLineDash([5, 5]);
+            }
+            
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+            
+            if (dashed) {
+                ctx.setLineDash([]);
+            }
+        }
+        
+        // Desenhar ponto 3D
+        function drawPoint3D(x, y, z, label, color = '#ffd93d', selected = false) {
+            const p = project3D(x, y, z);
+            
+            // Desenhar esfera
+            ctx.fillStyle = selected ? '#4ecdc4' : color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, selected ? 10 : 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Desenhar label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Comic Sans MS';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, p.x, p.y - 15);
+        }
+        
+        // Desenhar grade
+        function drawGrid() {
+            const gridSize = 30;
+            const step = 5;
+            
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            
+            // Grade XZ (chão)
+            for (let i = -gridSize; i <= gridSize; i += step) {
+                drawLine3D(-gridSize, 0, i, gridSize, 0, i, '#eee');
+                drawLine3D(i, 0, -gridSize, i, 0, gridSize, '#eee');
+            }
+        }
+        
+        // Desenhar eixos
+        function drawAxes() {
+            const axisLength = 35;
+            
+            // Eixo X (vermelho)
+            drawLine3D(0, 0, 0, axisLength, 0, 0, '#ff0000', 3);
+            drawLine3D(0, 0, 0, -axisLength, 0, 0, '#ffaaaa', 2);
+            
+            // Eixo Y (verde)
+            drawLine3D(0, 0, 0, 0, axisLength, 0, '#00ff00', 3);
+            drawLine3D(0, 0, 0, 0, -axisLength, 0, '#aaffaa', 2);
+            
+            // Eixo Z (azul)
+            drawLine3D(0, 0, 0, 0, 0, axisLength, '#0000ff', 3);
+            drawLine3D(0, 0, 0, 0, 0, -axisLength, '#aaaaff', 2);
+            
+            // Labels dos eixos
+            const labelOffset = 13;
+            drawAxisLabel(labelOffset, 0, 0, 'X+');
+            drawAxisLabel(0, labelOffset, 0, 'Y+');
+            drawAxisLabel(0, 0, labelOffset, 'Z+');
+            drawAxisLabel(-labelOffset, 0, 0, 'X-');
+            drawAxisLabel(0, -labelOffset, 0, 'Y-');
+            drawAxisLabel(0, 0, -labelOffset, 'Z-');
+        }
+        
+        // Desenhar label do eixo
+        function drawAxisLabel(x, y, z, label) {
+            const p = project3D(x, y, z);
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Comic Sans MS';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, p.x, p.y);
+        }
+        
+        // Desenhar origem
+        function drawOrigin() {
+            drawPoint3D(0, 0, 0, '(0,0,0)', '#333');
+        }
+        
+        // Desenhar relações trigonométricas
+        function drawTrigRelations(point) {
+            if (!point) return;
+            
+            const x = point.x;
+            const y = point.y;
+            const z = point.z;
+            
+            // Desenhar linhas de projeção
+            drawLine3D(x, y, z, x, 0, z, '#ff9800', 2, true);
+            drawLine3D(x, 0, z, x, 0, 0, '#ff9800', 2, true);
+            drawLine3D(x, 0, 0, 0, 0, 0, '#ff9800', 2, true);
+            
+            // Desenhar vetor da origem ao ponto
+            drawLine3D(0, 0, 0, x, y, z, '#ff6b00', 3);
+            
+            // Desenhar projeções nos planos
+            if (projectionPlane === 'xy') {
+                // Projeção no plano XY
+                drawLine3D(0, 0, 0, x, 0, 0, '#ff0000', 2);
+                drawLine3D(x, 0, 0, x, y, 0, '#00ff00', 2);
+                drawLine3D(0, 0, 0, x, y, 0, '#ff6b00', 2, true);
+                
+                // Desenhar arco do ângulo
+                drawAngleArc(0, 0, 0, x, y, 0, 'xy');
+            } else if (projectionPlane === 'xz') {
+                // Projeção no plano XZ
+                drawLine3D(0, 0, 0, x, 0, 0, '#ff0000', 2);
+                drawLine3D(x, 0, 0, x, 0, z, '#0000ff', 2);
+                drawLine3D(0, 0, 0, x, 0, z, '#ff6b00', 2, true);
+                
+                // Desenhar arco do ângulo
+                drawAngleArc(0, 0, 0, x, 0, z, 'xz');
+            } else if (projectionPlane === 'yz') {
+                // Projeção no plano YZ
+                drawLine3D(0, 0, 0, 0, y, 0, '#00ff00', 2);
+                drawLine3D(0, y, 0, 0, y, z, '#0000ff', 2);
+                drawLine3D(0, 0, 0, 0, y, z, '#ff6b00', 2, true);
+                
+                // Desenhar arco do ângulo
+                drawAngleArc(0, 0, 0, 0, y, z, 'yz');
+            }
+        }
+        
+        // Desenhar arco de ângulo
+        function drawAngleArc(cx, cy, cz, x, y, z, plane) {
+            const radius = 10;
+            let startAngle = 0;
+            let endAngle = 0;
+            
+            if (plane === 'xy') {
+                endAngle = Math.atan2(y, x);
+            } else if (plane === 'xz') {
+                endAngle = Math.atan2(z, x);
+            } else if (plane === 'yz') {
+                startAngle = Math.PI / 2;
+                endAngle = Math.atan2(z, y) + Math.PI / 2;
+            }
+            
+            // Desenhar arco
+            ctx.strokeStyle = '#ff9800';
+            ctx.lineWidth = 2;
+            
+            const center = project3D(cx, cy, cz);
+            ctx.beginPath();
+            
+            for (let angle = startAngle; angle <= endAngle; angle += 0.1) {
+                let px, py, pz;
+                
+                if (plane === 'xy') {
+                    px = radius * Math.cos(angle);
+                    py = radius * Math.sin(angle);
+                    pz = 0;
+                } else if (plane === 'xz') {
+                    px = radius * Math.cos(angle);
+                    py = 0;
+                    pz = radius * Math.sin(angle);
+                } else if (plane === 'yz') {
+                    px = 0;
+                    py = radius * Math.cos(angle);
+                    pz = radius * Math.sin(angle);
+                }
+                
+                const p = project3D(px, py, pz);
+                
+                if (angle === startAngle) {
+                    ctx.moveTo(p.x, p.y);
+                } else {
+                    ctx.lineTo(p.x, p.y);
+                }
+            }
+            
+            ctx.stroke();
+        }
+        
+        // Calcular valores trigonométricos
+        function calculateTrigValues(point) {
+            const x = point.x;
+            const y = point.y;
+            const z = point.z;
+            
+            let values = {};
+            
+            if (projectionPlane === 'xy') {
+                const r = Math.sqrt(x * x + y * y);
+                const theta = Math.atan2(y, x);
+                
+                values = {
+                    'Raio (r)': r.toFixed(2),
+                    'Ângulo (θ)': `${(theta * 180 / Math.PI).toFixed(1)}° = ${(theta / Math.PI).toFixed(2)}π`,
+                    'sen(θ)': (y / r).toFixed(3),
+                    'cos(θ)': (x / r).toFixed(3),
+                    'tan(θ)': (y / x).toFixed(3),
+                    'Componente X': x,
+                    'Componente Y': y
+                };
+            } else if (projectionPlane === 'xz') {
+                const r = Math.sqrt(x * x + z * z);
+                const theta = Math.atan2(z, x);
+                
+                values = {
+                    'Raio (r)': r.toFixed(2),
+                    'Ângulo (θ)': `${(theta * 180 / Math.PI).toFixed(1)}° = ${(theta / Math.PI).toFixed(2)}π`,
+                    'sen(θ)': (z / r).toFixed(3),
+                    'cos(θ)': (x / r).toFixed(3),
+                    'tan(θ)': (z / x).toFixed(3),
+                    'Componente X': x,
+                    'Componente Z': z
+                };
+            } else if (projectionPlane === 'yz') {
+                const r = Math.sqrt(y * y + z * z);
+                const theta = Math.atan2(z, y);
+                
+                values = {
+                    'Raio (r)': r.toFixed(2),
+                    'Ângulo (θ)': `${(theta * 180 / Math.PI).toFixed(1)}° = ${(theta / Math.PI).toFixed(2)}π`,
+                    'sen(θ)': (z / r).toFixed(3),
+                    'cos(θ)': (y / r).toFixed(3),
+                    'tan(θ)': (z / y).toFixed(3),
+                    'Componente Y': y,
+                    'Componente Z': z
+                };
+            }
+            
+            // Adicionar magnitude 3D
+            const magnitude = Math.sqrt(x * x + y * y + z * z);
+            values['Magnitude 3D'] = magnitude.toFixed(2);
+            
+            return values;
+        }
+        
+        // Atualizar informações trigonométricas
+        function updateTrigInfo() {
+            const trigDiv = document.getElementById('trig-info');
+            const valuesDiv = document.getElementById('trig-values');
+            
+            if (!selectedPoint) {
+                trigDiv.style.display = 'none';
+                return;
+            }
+            
+            trigDiv.style.display = 'block';
+            valuesDiv.innerHTML = '';
+            
+            const values = calculateTrigValues(selectedPoint);
+            
+            for (const [key, value] of Object.entries(values)) {
+                const div = document.createElement('div');
+                div.className = 'trig-value';
+                div.innerHTML = `<strong>${key}:</strong> <span>${value}</span>`;
+                valuesDiv.appendChild(div);
+            }
+        }
+        
+        // Função principal de desenho
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Desenhar grade
+            drawGrid();
+            
+            // Desenhar eixos
+            drawAxes();
+            
+            // Desenhar origem
+            drawOrigin();
+            
+            // Desenhar relações trigonométricas se houver ponto selecionado
+            if (selectedPoint) {
+                drawTrigRelations(selectedPoint);
+            }
+            
+            // Desenhar pontos marcados
+            markedPoints.forEach(point => {
+                drawPoint3D(
+                    point.x,
+                    point.y,
+                    point.z,
+                    point.label,
+                    '#ffd93d',
+                    point === selectedPoint
+                );
+            });
+        }
+        
+        // Marcar ponto
+        function markPoint() {
+            const x = parseInt(document.getElementById('x-coord').value);
+            const y = parseInt(document.getElementById('y-coord').value);
+            const z = parseInt(document.getElementById('z-coord').value);
+            
+            // Validar entrada
+            if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                alert('Por favor, insira valores válidos para X, Y e Z');
+                return;
+            }
+            
+            // Verificar limites
+            if (x < -30 || x > 30 || y < -30 || y > 30 || z < -30 || z > 30) {
+                alert('Por favor, insira valores entre -30 e 30');
+                return;
+            }
+            
+            // Adicionar ponto
+            const label = `(${x},${y},${z})`;
+            const newPoint = { x, y, z, label };
+            markedPoints.push(newPoint);
+            
+            // Selecionar automaticamente o novo ponto
+            selectPoint(markedPoints.length - 1);
+            
+            // Atualizar lista
+            updatePointsList();
+            
+            // Redesenhar
+            draw();
+        }
+        
+        // Limpar pontos
+        function clearPoints() {
+            markedPoints = [];
+            selectedPoint = null;
+            updatePointsList();
+            updateTrigInfo();
+            draw();
+        }
+        
+        // Selecionar ponto
+        function selectPoint(index) {
+            selectedPoint = markedPoints[index];
+            updatePointsList();
+            updateTrigInfo();
+            draw();
+        }
+        
+        // Atualizar lista de pontos
+        function updatePointsList() {
+            const list = document.getElementById('points-list');
+            list.innerHTML = '';
+            
+            if (markedPoints.length === 0) {
+                list.innerHTML = '<p style="color: #999;">Nenhum ponto marcado</p>';
+            } else {
+                markedPoints.forEach((point, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'point-item';
+                    if (point === selectedPoint) {
+                        item.classList.add('selected');
+                    }
+                    item.textContent = `${index + 1}. ${point.label}`;
+                    item.onclick = () => selectPoint(index);
+                    list.appendChild(item);
+                });
+            }
+        }
+        
+        // Definir plano de projeção
+        function setProjection(plane) {
+            projectionPlane = plane;
+            
+            // Atualizar botões
+            document.querySelectorAll('.projection-toggle button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`proj-${plane}`).classList.add('active');
+            
+            // Atualizar visualização
+            updateTrigInfo();
+            draw();
+        }
+        
+        // Inicializar
+        draw();
+        updatePointsList();
+        
+        // Enter key para marcar ponto
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    markPoint();
+                }
+            });
+        });
+        
+        // Adicionar um ponto de exemplo
+        setTimeout(() => {
+            markPoint();
+        }, 500);
+    </script>
+</body>
+</html>

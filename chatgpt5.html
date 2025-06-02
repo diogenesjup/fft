@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Grade Isométrica Interativa com Imagens Flutuantes</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #e0f7ff;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    canvas {
+      display: block;
+      cursor: grab;
+    }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.1);
+      padding: 10px;
+      border-radius: 6px;
+      z-index: 10;
+    }
+    #controls button {
+      padding: 6px 10px;
+      margin-right: 5px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!--  <div id="controls">
+    <button onclick="rotateLeft()">⟲ Rotacionar</button>
+    <button onclick="rotateRight()">⟳ Rotacionar</button>
+    <button onclick="toggleVerticalAngle()">↕ Altera Ângulo</button> 
+  </div>
+  -->
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Configurações iniciais em array (objeto)
+    const config = {
+      tileSize: 40,
+      gridCols: 12,
+      gridRows: 12,
+      skewVertical: false,
+      skewFactor: 0.7, // Atualizei para o seu novo valor de inclinação
+      cellHeights: {
+        '1x1': 3,
+        '1x2': 2,
+        '1x3': 2,
+        '1x4': 1,
+        '1x5': 1,
+        '2x1': 3,
+        '2x2': 2,
+        '2x3': 2,
+        '2x4': 1,
+        '3x1': 2,
+        '3x2': 1,
+        '4x1': 1,
+        '8x1': 10
+      },
+      specialColors: {
+        '1x1': '#ff0000', // célula 1x1 fica vermelha
+        '2x3': '#00ff00', // célula 2x3 fica verde
+        '5x6': '#0000ff',  // célula 5x6 fica azul
+        '12x12': '#000'
+      },
+      // Nova configuração para imagens flutuantes
+      floatingImages: {
+        '3x4': {
+          src: 'assets/carta1.jpg', // Usando placeholder para o exemplo
+          size: 0.7 // Tamanho relativo ao tamanho do tile
+        },
+        '8x2': {
+          src: 'assets/carta2.jpg',
+          size: 0.7
+        },
+        '1x2': {
+          src: 'assets/carta2.jpg',
+          size: 0.7
+        },
+        '9x11': {
+          src: 'assets/carta2.jpg',
+          size: 1.2
+        },
+      }
+    };
+
+
+    let tileSize = config.tileSize;
+    const gridCols = config.gridCols;
+    const gridRows = config.gridRows;
+
+    let offsetX = 0;
+    let offsetY = 0;
+    let isDragging = false;
+    let dragStartX, dragStartY;
+
+    let zoom = 1;
+    let rotation = 0;
+    let selectedCell = null;
+    let adjacentCells = [];
+    
+    // Variáveis para as imagens flutuantes
+    const floatingImages = [];
+    let animationFrame;
+    let animationTime = 0;
+    
+    // Variáveis para controlar a ampliação
+    let expandedImage = null;
+    let expandProgress = 0;
+    const expandDuration = 20; // Quantidade de frames para a animação completa
+    
+    // Carregando as imagens flutuantes
+    function loadFloatingImages() {
+      for (const position in config.floatingImages) {
+        const [row, col] = position.split('x').map(Number);
+        const imgConfig = config.floatingImages[position];
+        
+        const img = new Image();
+        img.src = imgConfig.src;
+        img.onload = () => {
+          floatingImages.push({
+            img: img,
+            x: col - 1, // Ajustando para índice baseado em 0
+            y: row - 1,
+            size: imgConfig.size,
+            offset: 0, // Para a animação de flutuação
+            position: position,
+            expanded: false,
+            expandProgress: 0,
+            originalSize: imgConfig.size
+          });
+          drawGrid(); // Redesenhar a grade quando a imagem carregar
+        };
+      }
+    }
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    const origin = { x: canvas.width / 2, y: canvas.height / 3 };
+
+    const cells = [];
+
+    function rotateLeft() {
+      rotation = (rotation - 90 + 360) % 360;
+      drawGrid();
+    }
+
+    function rotateRight() {
+      rotation = (rotation + 90) % 360;
+      drawGrid();
+    }
+
+    function toggleVerticalAngle() {
+      config.skewVertical = !config.skewVertical;
+      drawGrid();
+    }
+
+    function shadeColor(color, percent) {
+      let f = parseInt(color.slice(1), 16);
+      let t = percent < 0 ? 0 : 255;
+      let p = percent < 0 ? percent * -1 : percent;
+      let R = f >> 16;
+      let G = f >> 8 & 0x00FF;
+      let B = f & 0x0000FF;
+      return "#" + (0x1000000 +
+        (Math.round((t - R) * p) + R) * 0x10000 +
+        (Math.round((t - G) * p) + G) * 0x100 +
+        (Math.round((t - B) * p) + B))
+        .toString(16)
+        .slice(1);
+    }
+
+    function drawTile(x, y, fill = '#e0e0e0', stroke = '#ccc') {
+      let rotatedX = x;
+      let rotatedY = y;
+
+      for (let i = 0; i < rotation / 90; i++) {
+        const temp = rotatedX;
+        rotatedX = gridCols - 1 - rotatedY;
+        rotatedY = temp;
+      }
+
+      const skewFactor = config.skewVertical ? config.skewFactor : 1;
+
+      const cellKey = `${y + 1}x${x + 1}`;
+      
+      const heightBlocks = config.cellHeights[cellKey] || 0;
+
+      const blockHeight = (tileSize / 2) * skewFactor * zoom;
+      const totalHeight = blockHeight * heightBlocks;
+
+      // ⬇️ IMPORTANTE: altura já entra aqui
+      const isoX = (rotatedX - rotatedY) * tileSize;
+      const isoY = (rotatedX + rotatedY) * tileSize / 2 * skewFactor - heightBlocks * tileSize / 2;
+
+      let screenX = origin.x + offsetX + isoX * zoom;
+      let screenY = origin.y + offsetY + isoY * zoom;
+
+      const halfTileSize = tileSize / 2 * zoom;
+      const fullTileSize = tileSize * zoom;
+
+      const top = [
+        [screenX, screenY],
+        [screenX + fullTileSize, screenY + halfTileSize * skewFactor],
+        [screenX, screenY + fullTileSize * skewFactor],
+        [screenX - fullTileSize, screenY + halfTileSize * skewFactor],
+      ];
+
+      const base = [
+        [screenX, screenY + totalHeight],
+        [screenX + fullTileSize, screenY + halfTileSize * skewFactor + totalHeight],
+        [screenX, screenY + fullTileSize * skewFactor + totalHeight],
+        [screenX - fullTileSize, screenY + halfTileSize * skewFactor + totalHeight],
+      ];
+
+      if (heightBlocks > 0) {
+        // PAREDE DIREITA
+        ctx.beginPath();
+        ctx.moveTo(base[0][0], base[0][1]);
+        ctx.lineTo(base[1][0], base[1][1]);
+        ctx.lineTo(top[1][0], top[1][1]);
+        ctx.lineTo(top[0][0], top[0][1]);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+
+        // PAREDE ESQUERDA
+        ctx.beginPath();
+        ctx.moveTo(base[0][0], base[0][1]);
+        ctx.lineTo(base[3][0], base[3][1]);
+        ctx.lineTo(top[3][0], top[3][1]);
+        ctx.lineTo(top[0][0], top[0][1]);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+
+        // PAREDE DA FRENTE
+        ctx.beginPath();
+        ctx.moveTo(base[1][0], base[1][1]);
+        ctx.lineTo(base[2][0], base[2][1]);
+        ctx.lineTo(top[2][0], top[2][1]);
+        ctx.lineTo(top[1][0], top[1][1]);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+
+        // PAREDE DE TRÁS
+        ctx.beginPath();
+        ctx.moveTo(base[3][0], base[3][1]);
+        ctx.lineTo(base[2][0], base[2][1]);
+        ctx.lineTo(top[2][0], top[2][1]);
+        ctx.lineTo(top[3][0], top[3][1]);
+        ctx.closePath();
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+      }
+
+      // Desenhar o TOPO
+      const path = new Path2D();
+      path.moveTo(...top[0]);
+      for (let i = 1; i < 4; i++) {
+        path.lineTo(...top[i]);
+      }
+      path.closePath();
+
+      if (selectedCell && selectedCell.x === x && selectedCell.y === y) {
+        ctx.fillStyle = '#ffeb3b'; // célula clicada
+      } else if (selectedCell && selectedCell.y === y) {
+        ctx.fillStyle = '#fff9c4'; // linha clicada
+      } else if (adjacentCells.some(cell => cell.x === x && cell.y === y)) {
+        ctx.fillStyle = '#f0f0f0'; // adjacentes
+      } else if (config.specialColors[cellKey]) {
+        ctx.fillStyle = config.specialColors[cellKey]; // cor especial definida no array
+      } else {
+        ctx.fillStyle = fill; // cor padrão
+      }
+
+      ctx.fill(path);
+      ctx.strokeStyle = stroke;
+      ctx.stroke(path);
+
+      ctx.fillStyle = '#333';
+      ctx.font = `${12 * zoom}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${y + 1}x${x + 1}`, screenX, screenY + halfTileSize * skewFactor);
+
+      cells.push({ 
+        x, 
+        y, 
+        path,
+        screenX,
+        screenY,
+        fullTileSize,
+        halfTileSize,
+        skewFactor,
+        cellKey
+      });
+    }
+
+    // Nova função para desenhar as imagens flutuantes
+    function drawFloatingImages() {
+      animationTime += 0.035;
+      
+      // Atualize a animação de expansão
+      updateImageExpansion();
+      
+      for (const imgObj of floatingImages) {
+        // Encontrar a célula correspondente
+        const cell = cells.find(c => c.x === imgObj.x && c.y === imgObj.y);
+        if (!cell) continue;
+        
+        // Calcular a animação de flutuação
+        imgObj.offset = Math.sin(animationTime + imgObj.x + imgObj.y) * 5;
+        
+        // Calcular o tamanho atual com base no progresso de expansão
+        let currentSize = imgObj.originalSize;
+        
+        // Se a imagem estiver expandida ou em processo de expansão
+        if (imgObj.expandProgress > 0) {
+          // Calcular o fator de escala adicional (até 3x)
+          const expandFactor = 1 + (imgObj.expandProgress / expandDuration) * 4; // 1 a 3 (300%)
+          currentSize = imgObj.originalSize * expandFactor;
+        }
+        
+        // Desenhar a imagem
+        const imgWidth = cell.fullTileSize * currentSize;
+        const imgHeight = (imgObj.img.height / imgObj.img.width) * imgWidth;
+        
+        // Posicionar a imagem no centro da célula
+        const imgX = cell.screenX - imgWidth / 2;
+        const imgY = cell.screenY - imgHeight / 2;
+        
+        // Adicionar efeito de flutuação apenas se não estiver expandida
+        const offsetY = imgObj.expandProgress === 0 ? imgObj.offset : 0;
+        
+        ctx.drawImage(imgObj.img, imgX, imgY + offsetY, imgWidth, imgHeight);
+        
+        // Adicionar a área clicável da imagem
+        imgObj.clickArea = {
+          x: imgX,
+          y: imgY + offsetY,
+          width: imgWidth,
+          height: imgHeight,
+          position: imgObj.position
+        };
+        
+        // Se estiver expandida, adicionar um efeito de sombra
+        if (imgObj.expandProgress > 0) {
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+          ctx.shadowBlur = 15 * (imgObj.expandProgress / expandDuration);
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+        } else {
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+        }
+      }
+      
+      // Resetar sombra para não afetar outros elementos
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+    }
+    
+    // Atualizar a animação de expansão
+    function updateImageExpansion() {
+      let needsRedraw = false;
+      
+      for (const imgObj of floatingImages) {
+        if (imgObj.expanded && imgObj.expandProgress < expandDuration) {
+          imgObj.expandProgress += 1;
+          needsRedraw = true;
+        } else if (!imgObj.expanded && imgObj.expandProgress > 0) {
+          imgObj.expandProgress -= 1;
+          needsRedraw = true;
+        }
+      }
+      
+      if (needsRedraw) {
+        drawGrid();
+      }
+    }
+
+    // Função de animação contínua
+    function animate() {
+      drawGrid();
+      animationFrame = requestAnimationFrame(animate);
+    }
+
+    function drawGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      cells.length = 0;
+
+      for (let row = 0; row < gridRows; row++) {
+        for (let col = 0; col < gridCols; col++) {
+          drawTile(col, row);
+        }
+      }
+      
+      // Desenhar as imagens flutuantes
+      drawFloatingImages();
+    }
+
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.1 : -0.1;
+      zoom = Math.max(0.5, Math.min(2.5, zoom + delta));
+      drawGrid();
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      // Verifica se clicou em uma imagem
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      
+      let clickedOnImage = false;
+      
+      for (const imgObj of floatingImages) {
+        if (imgObj.clickArea && 
+            mouseX >= imgObj.clickArea.x && 
+            mouseX <= imgObj.clickArea.x + imgObj.clickArea.width &&
+            mouseY >= imgObj.clickArea.y && 
+            mouseY <= imgObj.clickArea.y + imgObj.clickArea.height) {
+          
+          clickedOnImage = true;
+          break;
+        }
+      }
+      
+      // Se não clicou em uma imagem, inicia o arrasto
+      if (!clickedOnImage) {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDragging = false;
+      canvas.style.cursor = 'grab';
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        offsetX += (e.clientX - dragStartX);
+        offsetY += (e.clientY - dragStartY);
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        drawGrid();
+      }
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        dragStartX = e.touches[0].clientX;
+        dragStartY = e.touches[0].clientY;
+        canvas.style.cursor = 'grabbing';
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (isDragging && e.touches.length === 1) {
+        const touch = e.touches[0];
+        offsetX += (touch.clientX - dragStartX);
+        offsetY += (touch.clientY - dragStartY);
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
+        drawGrid();
+      }
+    });
+
+    canvas.addEventListener('touchend', () => {
+      isDragging = false;
+      canvas.style.cursor = 'grab';
+    });
+
+    canvas.addEventListener('click', (e) => {
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      
+      // Verificar primeiro se clicou em uma imagem flutuante
+      let clickedImage = false;
+      
+      // Caso alguma imagem já esteja expandida, vamos retrair todas primeiro
+      let anyExpanded = floatingImages.some(img => img.expanded);
+      
+      for (const imgObj of floatingImages) {
+        if (imgObj.clickArea && 
+            mouseX >= imgObj.clickArea.x && 
+            mouseX <= imgObj.clickArea.x + imgObj.clickArea.width &&
+            mouseY >= imgObj.clickArea.y && 
+            mouseY <= imgObj.clickArea.y + imgObj.clickArea.height) {
+          
+          // Se já está expandida, retrair
+          if (imgObj.expanded) {
+            imgObj.expanded = false;
+          } 
+          // Se outra imagem está expandida, retrair todas e expandir esta
+          else if (anyExpanded) {
+            floatingImages.forEach(img => img.expanded = false);
+            imgObj.expanded = true;
+          }
+          // Caso contrário, apenas expandir esta
+          else {
+            imgObj.expanded = true;
+          }
+          
+          clickedImage = true;
+          break;
+        }
+      }
+      
+      // Se clicou fora de qualquer imagem e alguma está expandida, retrair todas
+      if (!clickedImage && anyExpanded) {
+        floatingImages.forEach(img => img.expanded = false);
+      }
+      // Se não clicou em uma imagem, verifique se clicou em uma célula
+      else if (!clickedImage) {
+        for (const cell of cells) {
+          if (ctx.isPointInPath(cell.path, mouseX, mouseY)) {
+            selectedCell = { x: cell.x, y: cell.y };
+
+            // Atualizar adjacentes
+            adjacentCells = [
+              { x: selectedCell.x - 1, y: selectedCell.y - 1 },
+              { x: selectedCell.x,     y: selectedCell.y - 1 },
+              { x: selectedCell.x + 1, y: selectedCell.y - 1 },
+              { x: selectedCell.x - 1, y: selectedCell.y },
+              { x: selectedCell.x + 1, y: selectedCell.y },
+              { x: selectedCell.x - 1, y: selectedCell.y + 1 },
+              { x: selectedCell.x,     y: selectedCell.y + 1 },
+              { x: selectedCell.x + 1, y: selectedCell.y + 1 },
+            ];
+
+            drawGrid();
+            break;
+          }
+        }
+      }
+    });
+
+    // Inicializar
+    loadFloatingImages();
+    animate(); // Inicia a animação contínua
+    
+    // Limpar animação quando a página for fechada
+    window.addEventListener('beforeunload', () => {
+      cancelAnimationFrame(animationFrame);
+    });
+  </script>
+</body>
+</html>

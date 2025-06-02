@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Cartesiano 3D Interativo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Marker Felt', cursive;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 32px;
+        }
+        
+        #main-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        #canvas-container {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        canvas {
+            border: 1px solid #999;
+            cursor: grab;
+        }
+        
+        canvas:active {
+            cursor: grabbing;
+        }
+        
+        #controls {
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-width: 250px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Comic Sans MS', cursive;
+        }
+        
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #4ecdc4;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #4ecdc4;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Comic Sans MS', cursive;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: #45b5aa;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        #clear-button {
+            background-color: #ff6b6b;
+            margin-top: 10px;
+        }
+        
+        #clear-button:hover {
+            background-color: #ff5252;
+        }
+        
+        .instructions {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 16px;
+            text-align: center;
+            max-width: 800px;
+        }
+        
+        .axis-legend {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+        
+        .axis-legend h3 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            font-size: 16px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 4px;
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+        
+        .marked-points {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .marked-points h3 {
+            margin-top: 0;
+            font-size: 20px;
+        }
+        
+        .point-item {
+            padding: 5px;
+            margin: 5px 0;
+            background-color: #ffd93d;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema Cartesiano 3D Interativo</h1>
+    
+    <div class="instructions">
+        💡 <strong>Instruções:</strong> Use o mouse para rotacionar a visualização 3D. 
+        Digite as coordenadas X, Y e Z nos campos e clique em "Marcar Ponto" para visualizar a posição no espaço 3D.
+    </div>
+    
+    <div id="main-container">
+        <div id="canvas-container">
+            <canvas id="canvas3d" width="600" height="600"></canvas>
+        </div>
+        
+        <div id="controls">
+            <h2 style="margin-top: 0; font-size: 24px;">Coordenadas</h2>
+            
+            <div class="control-group">
+                <label for="x-coord">Posição X:</label>
+                <input type="number" id="x-coord" min="-30" max="30" value="0" step="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="y-coord">Posição Y:</label>
+                <input type="number" id="y-coord" min="-30" max="30" value="0" step="1">
+            </div>
+            
+            <div class="control-group">
+                <label for="z-coord">Posição Z:</label>
+                <input type="number" id="z-coord" min="-30" max="30" value="0" step="1">
+            </div>
+            
+            <button onclick="markPoint()">Marcar Ponto</button>
+            <button id="clear-button" onclick="clearPoints()">Limpar Pontos</button>
+            
+            <div class="axis-legend">
+                <h3>Legenda dos Eixos:</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff0000;"></div>
+                    <span>Eixo X (Horizontal)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #00ff00;"></div>
+                    <span>Eixo Y (Vertical)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #0000ff;"></div>
+                    <span>Eixo Z (Profundidade)</span>
+                </div>
+            </div>
+            
+            <div class="marked-points">
+                <h3>Pontos Marcados:</h3>
+                <div id="points-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        
+        // Variáveis de rotação
+        let rotationX = -0.5;
+        let rotationY = -0.5;
+        let scale = 20;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
+        // Pontos marcados
+        let markedPoints = [];
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - lastMouseX;
+                const deltaY = e.clientY - lastMouseY;
+                
+                rotationY += deltaX * 0.01;
+                rotationX += deltaY * 0.01;
+                
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                
+                draw();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+        });
+        
+        // Mouse wheel para zoom
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            scale *= delta;
+            
+            // Limitar o zoom
+            scale = Math.max(5, Math.min(50, scale));
+            
+            draw();
+        });
+        
+        // Projeção 3D para 2D
+        function project3D(x, y, z) {
+            // Rotação em Y
+            const cosY = Math.cos(rotationY);
+            const sinY = Math.sin(rotationY);
+            const x1 = x * cosY - z * sinY;
+            const z1 = x * sinY + z * cosY;
+            
+            // Rotação em X
+            const cosX = Math.cos(rotationX);
+            const sinX = Math.sin(rotationX);
+            const y1 = y * cosX - z1 * sinX;
+            const z2 = y * sinX + z1 * cosX;
+            
+            // Projeção
+            const perspective = 500 / (500 + z2);
+            const x2d = centerX + x1 * scale * perspective;
+            const y2d = centerY - y1 * scale * perspective;
+            
+            return { x: x2d, y: y2d, depth: z2 };
+        }
+        
+        // Desenhar linha 3D
+        function drawLine3D(x1, y1, z1, x2, y2, z2, color, lineWidth = 1) {
+            const p1 = project3D(x1, y1, z1);
+            const p2 = project3D(x2, y2, z2);
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+        }
+        
+        // Desenhar ponto 3D
+        function drawPoint3D(x, y, z, label, color = '#ffd93d') {
+            const p = project3D(x, y, z);
+            
+            // Desenhar esfera
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Desenhar label
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 14px Comic Sans MS';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, p.x, p.y - 15);
+        }
+        
+        // Desenhar grade
+        function drawGrid() {
+            const gridSize = 30;
+            const step = 5;
+            
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            
+            // Grade XZ (chão)
+            for (let i = -gridSize; i <= gridSize; i += step) {
+                drawLine3D(-gridSize, 0, i, gridSize, 0, i, '#eee');
+                drawLine3D(i, 0, -gridSize, i, 0, gridSize, '#eee');
+            }
+        }
+        
+        // Desenhar eixos
+        function drawAxes() {
+            const axisLength = 35;
+            
+            // Eixo X (vermelho)
+            drawLine3D(0, 0, 0, axisLength, 0, 0, '#ff0000', 3);
+            drawLine3D(0, 0, 0, -axisLength, 0, 0, '#ffaaaa', 2);
+            
+            // Eixo Y (verde)
+            drawLine3D(0, 0, 0, 0, axisLength, 0, '#00ff00', 3);
+            drawLine3D(0, 0, 0, 0, -axisLength, 0, '#aaffaa', 2);
+            
+            // Eixo Z (azul)
+            drawLine3D(0, 0, 0, 0, 0, axisLength, '#0000ff', 3);
+            drawLine3D(0, 0, 0, 0, 0, -axisLength, '#aaaaff', 2);
+            
+            // Labels dos eixos
+            const labelOffset = 13;
+            drawAxisLabel(labelOffset, 0, 0, 'X+');
+            drawAxisLabel(0, labelOffset, 0, 'Y+');
+            drawAxisLabel(0, 0, labelOffset, 'Z+');
+            drawAxisLabel(-labelOffset, 0, 0, 'X-');
+            drawAxisLabel(0, -labelOffset, 0, 'Y-');
+            drawAxisLabel(0, 0, -labelOffset, 'Z-');
+        }
+        
+        // Desenhar label do eixo
+        function drawAxisLabel(x, y, z, label) {
+            const p = project3D(x, y, z);
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Comic Sans MS';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, p.x, p.y);
+        }
+        
+        // Desenhar origem
+        function drawOrigin() {
+            drawPoint3D(0, 0, 0, '(0,0,0)', '#333');
+        }
+        
+        // Função principal de desenho
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Ordenar elementos por profundidade
+            const elements = [];
+            
+            // Adicionar grade
+            elements.push({ type: 'grid', depth: 0 });
+            
+            // Adicionar eixos
+            elements.push({ type: 'axes', depth: 0 });
+            
+            // Adicionar origem
+            elements.push({ type: 'origin', depth: project3D(0, 0, 0).depth });
+            
+            // Adicionar pontos marcados
+            markedPoints.forEach(point => {
+                const p = project3D(point.x, point.y, point.z);
+                elements.push({
+                    type: 'point',
+                    data: point,
+                    depth: p.depth
+                });
+            });
+            
+            // Ordenar por profundidade (mais distante primeiro)
+            elements.sort((a, b) => a.depth - b.depth);
+            
+            // Desenhar elementos ordenados
+            elements.forEach(element => {
+                switch (element.type) {
+                    case 'grid':
+                        drawGrid();
+                        break;
+                    case 'axes':
+                        drawAxes();
+                        break;
+                    case 'origin':
+                        drawOrigin();
+                        break;
+                    case 'point':
+                        drawPoint3D(
+                            element.data.x,
+                            element.data.y,
+                            element.data.z,
+                            element.data.label
+                        );
+                        break;
+                }
+            });
+        }
+        
+        // Marcar ponto
+        function markPoint() {
+            const x = parseInt(document.getElementById('x-coord').value);
+            const y = parseInt(document.getElementById('y-coord').value);
+            const z = parseInt(document.getElementById('z-coord').value);
+            
+            // Validar entrada
+            if (isNaN(x) || isNaN(y) || isNaN(z)) {
+                alert('Por favor, insira valores válidos para X, Y e Z');
+                return;
+            }
+            
+            // Verificar limites
+            if (x < -30 || x > 30 || y < -30 || y > 30 || z < -30 || z > 30) {
+                alert('Por favor, insira valores entre -30 e 30');
+                return;
+            }
+            
+            // Adicionar ponto
+            const label = `(${x},${y},${z})`;
+            markedPoints.push({ x, y, z, label });
+            
+            // Atualizar lista
+            updatePointsList();
+            
+            // Redesenhar
+            draw();
+        }
+        
+        // Limpar pontos
+        function clearPoints() {
+            markedPoints = [];
+            updatePointsList();
+            draw();
+        }
+        
+        // Atualizar lista de pontos
+        function updatePointsList() {
+            const list = document.getElementById('points-list');
+            list.innerHTML = '';
+            
+            if (markedPoints.length === 0) {
+                list.innerHTML = '<p style="color: #999;">Nenhum ponto marcado</p>';
+            } else {
+                markedPoints.forEach((point, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'point-item';
+                    item.textContent = `${index + 1}. ${point.label}`;
+                    list.appendChild(item);
+                });
+            }
+        }
+        
+        // Inicializar
+        draw();
+        updatePointsList();
+        
+        // Enter key para marcar ponto
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    markPoint();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
